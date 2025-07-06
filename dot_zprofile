@@ -1,0 +1,15 @@
+# Sheldon有効化
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
+# codeコマンドでvscodeを起動するようにパスの差し込み
+export PATH="/mnt/c/Users/toyama-ryosuke/AppData/Local/Programs/Microsoft VS Code/bin:$PATH"
+
+# ブラウザ設定
+export BROWSER="/mnt/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
+
+# ローカル開発に必要な認証情報を環境変数として設定する。
+export LOCAL_USER=local_user
+export LOCAL_PASSWORD=local_password
+
+
+export PATH="/home/linuxbrew/.linuxbrew/opt/openjdk@8/bin:$PATH"
