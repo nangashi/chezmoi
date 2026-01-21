@@ -1,38 +1,46 @@
-# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
-# Initialization code that may require console input (password prompts, [y/n]
-# confirmations, etc.) must go above this block; everything else may go below.
+# chezmoi init用の設定保持
+export GIT_NAME={{ .git_name }}
+export GIT_EMAIL={{ .git_email }}
+export WINDOWS_USERNAME={{ .windows_username }}
+
+# cursor導入時にcodeコマンドでvscodeを起動するようにパスを追加
+export PATH="/mnt/c/Users/{{ .windows_username }}/AppData/Local/Programs/Microsoft VS Code/bin:$PATH"
+
+# ブラウザ設定
+export BROWSER="/mnt/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
+
+# brew
+if [ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+
+# p10kの有効化
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
-# パッケージ管理Sheldonの有効化
+# mise
+if command -v mise &> /dev/null; then
+  eval "$(mise activate zsh)"
+fi
+
+# zshパッケージ管理Sheldonの有効化
 eval "$(sheldon source)"
-
-# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-
 
 # 汎用設定
 setopt print_eight_bit       # 日本語ファイル名を表示可能にする
 setopt no_beep               # ビープ音停止
 setopt nolistbeep            # 補完時のビープ音停止
-
 # エイリアス
-#alias ls="lsd"
-abbr -q -S tg="terragrunt"
 abbr -q -S dc="docker compose"
-
-alias ls="eza -h -@ -m --icons --git --time-style=long-iso --color=automatic --group-directories-first"
-alias ll="eza -l -aa -h -@ -m --icons --git --time-style=long-iso --color=automatic --group-directories-first"
-alias less="bat"
-
+abbr -q -S mr="mise run"
+alias ls="eza -F -h -@ -m --icons --git --time-style=long-iso --color=automatic --group-directories-first"
+alias ll="eza -F -l -aa -h -@ -m --icons --git --time-style=long-iso --color=automatic --group-directories-first"
 # 色関係
-#eval "$(dircolors ~/.dircolors)"
 autoload -Uz colors          # 色を使用できるようにする
 colors
 # ディレクトリ補完でも着色
 zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
-
 # 補完
 autoload -Uz compinit
 compinit
@@ -51,7 +59,6 @@ zstyle ':completion:*:messages' format '%F{yellow}%d%f'
 zstyle ':completion:*:warnings' format '%F{red}No matches for:%f %F{yellow}%d%f'
 zstyle ':completion:*:descriptions' format '%F{yellow}completing %B%d%b%f'
 zstyle ':completion:*:options' description 'yes'
-
 # コマンド履歴
 HISTFILE=~/.zsh_history
 HISTSIZE=10000
@@ -63,14 +70,23 @@ setopt append_history        # 履歴を追加 (毎回 .zsh_history を作るの
 setopt inc_append_history    # 履歴をインクリメンタルに追加
 setopt hist_no_store         # historyコマンドは履歴に登録しない
 setopt hist_reduce_blanks    # 余分な空白は詰めて記録
-
-# fzf有効化
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+# ==================================================
+# 外部ツール
+# ==================================================
+# mise
+if command -v mise &> /dev/null; then
+  eval "$(mise completion zsh)"
+fi
+# fzf
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-eval "$(fzf --zsh)"
-export FZF_DEFAULT_OPTS='
-  --color=bg+:#293739,bg:#1B1D1E,border:#808080,spinner:#E6DB74,hl:#7E8E91,fg:#F8F8F2,header:#7E8E91,info:#A6E22E,pointer:#A6E22E,marker:#F92672,fg+:#F8F8F2,prompt:#F92672,hl+:#F92672
-'
-
+if command -v fzf &> /dev/null; then
+  eval "$(fzf --zsh)"
+  export FZF_DEFAULT_OPTS='
+    --color=bg+:#293739,bg:#1B1D1E,border:#808080,spinner:#E6DB74,hl:#7E8E91,fg:#F8F8F2,header:#7E8E91,info:#A6E22E,pointer:#A6E22E,marker:#F92672,fg+:#F8F8F2,prompt:#F92672,hl+:#F92672
+  '
+fi
 # zコマンド検索
 fzf-z-search() {
     local res=$(z | sort -rn | cut -c 12- | fzf)
@@ -83,42 +99,16 @@ fzf-z-search() {
 }
 zle -N fzf-z-search
 bindkey '^f' fzf-z-search
-
-# # pyenv
-# if command -v pyenv &> /dev/null; then
-#     eval "$(pyenv init -)"
-# fi
-
-# # jenv
-# if command -v jenv &> /dev/null; then
-#   export PATH="$HOME/.jenv/bin:$PATH"
-#   eval "$(jenv init -)"
-# fi
-
-# direnv
-if command -v direnv &> /dev/null; then
-  eval "$(direnv hook zsh)"
-fi
-
-
 # ==================================================
-# 補完
+# スクリプト
 # ==================================================
-
-eval "$(just --completions zsh)"
-
-# ==================================================
-# 関数
-# ==================================================
-
-# ブランチスイッチ
+# git switch
 gs() {
   local branches branch
   branches=$(git branch -vv) &&
   branch=$(echo "$branches" | fzf +m) &&
   git switch $(echo "$branch" | awk '{print $1}' | sed "s/.* //")
 }
-
 # git log
 gl() {
   git log --graph --color=always \
@@ -130,22 +120,19 @@ gl() {
                 {}
 FZF-EOF"
 }
-
-# インタラクティブリベース
+# git interactive rebase
 gir() {
   local commit
   commit=$(git log --color=always --graph --date=short --decorate=short --pretty=format:'%Cgreen%h %Creset%cd %Cblue%cn %Cred%d %Creset%s' | \
           fzf --ansi --reverse --no-sort | sed -e 's#[\*|\/]##g' -e 's#^ \+##' | cut -f1 -d' ')
   [ -n "$commit" ] && git rebase -i "$commit"
 }
-
-# fetch
+# git fetch
 gf() {
   local branch
   git fetch && branch=$(git branch -a --color=always | grep remotes/ | sort -r | fzf --ansi --reverse | sed -e 's#^ \+remotes/origin/##') && git fetch origin $branch && git switch $branch
 }
-
-# git branch
+# git branch -c
 gb() {
     # 引数がない場合はブランチ名を入力させる
     if [ -z "$1" ]; then
@@ -154,7 +141,6 @@ gb() {
     else
         branch_name="$1"
     fi
-
     # ブランチ名の変換処理
     if [[ $branch_name == f/* ]]; then
         # f/ で始まる場合は feature/ に変換
@@ -163,13 +149,10 @@ gb() {
         # r/ で始まる場合は release/ に変換
         branch_name="release/${branch_name#r/}"
     fi
-
     # 現在のブランチ名を取得
     current_branch=$(git symbolic-ref --short HEAD 2>/dev/null)
-    
     # 新しいブランチを作成
     git checkout -b "$branch_name"
-    
     if [ $? -eq 0 ]; then
         echo "ブランチ '$current_branch' から '$branch_name' を作成しました"
     else
