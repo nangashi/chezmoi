@@ -3,6 +3,9 @@ export GIT_NAME={{ .git_name }}
 export GIT_EMAIL={{ .git_email }}
 export WINDOWS_USERNAME={{ .windows_username }}
 
+# ローカルbinディレクトリをPATHに追加
+export PATH="$HOME/.local/bin:$PATH"
+
 # cursor導入時にcodeコマンドでvscodeを起動するようにパスを追加
 export PATH="/mnt/c/Users/{{ .windows_username }}/AppData/Local/Programs/Microsoft VS Code/bin:$PATH"
 
@@ -71,7 +74,7 @@ setopt inc_append_history    # 履歴をインクリメンタルに追加
 setopt hist_no_store         # historyコマンドは履歴に登録しない
 setopt hist_reduce_blanks    # 余分な空白は詰めて記録
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+[[ ! -f "${ZDOTDIR:-$HOME}/.p10k.zsh" ]] || source "${ZDOTDIR:-$HOME}/.p10k.zsh"
 # ==================================================
 # 外部ツール
 # ==================================================
