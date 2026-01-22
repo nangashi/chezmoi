@@ -1,3 +1,11 @@
 [tools]
 eza = "latest"
 fzf = "latest"
+ripgrep = "latest"      # grep代替 - 超高速検索
+bat = "latest"          # cat代替 - シンタックスハイライト
+fd = "latest"           # find代替 - 直感的な構文
+delta = "latest"        # git diff代替 - 見やすいdiff表示
+zoxide = "latest"       # z代替 - より高速なディレクトリジャンプ
+dust = "latest"         # du代替 - ディスク使用量の可視化
+sd = "latest"           # sed代替 - 直感的な置換
+procs = "latest"        # ps代替 - モダンなプロセスビューア
