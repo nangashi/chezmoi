@@ -1,0 +1,2 @@
+# Set ZDOTDIR to organize zsh config files
+export ZDOTDIR="$HOME/.config/zsh"
