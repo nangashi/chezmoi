@@ -28,7 +28,9 @@ if command -v mise &> /dev/null; then
 fi
 
 # zshパッケージ管理Sheldonの有効化
-eval "$(sheldon source)"
+if command -v sheldon &> /dev/null; then
+  eval "$(sheldon source)"
+fi
 
 # 汎用設定
 setopt print_eight_bit       # 日本語ファイル名を表示可能にする
@@ -48,7 +50,7 @@ zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
 autoload -Uz compinit
 compinit
 setopt auto_param_slash      # ディレクトリ補完時にスラッシュまで付ける
-setopt list_types            # 補完候補に識別マークをつける(ls -Fjj)
+setopt list_types            # 補完候補に識別マークをつける(ls -F)
 setopt magic_equal_subst     # パラメータのイコール以降で補完を有効にする
 setopt extended_glob         # 拡張グロブ（*や^）で補完する
 setopt globdots              # ドット指定なしでもドット付きファイルにマッチする
@@ -83,7 +85,6 @@ if command -v mise &> /dev/null; then
   eval "$(mise completion zsh)"
 fi
 # fzf
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 if command -v fzf &> /dev/null; then
   eval "$(fzf --zsh)"
   export FZF_DEFAULT_OPTS='
@@ -133,7 +134,10 @@ gir() {
 # git fetch
 gf() {
   local branch
-  git fetch && branch=$(git branch -a --color=always | grep remotes/ | sort -r | fzf --ansi --reverse | sed -e 's#^ \+remotes/origin/##') && git fetch origin $branch && git switch $branch
+  git fetch || return 1
+  branch=$(git branch -a --color=always | grep remotes/ | sort -r | fzf --ansi --reverse | sed -e 's#^ \+remotes/origin/##')
+  [ -z "$branch" ] && return 1
+  git fetch origin "$branch" && git switch "$branch"
 }
 # git branch -c
 gb() {

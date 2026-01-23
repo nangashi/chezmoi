@@ -1,0 +1,26 @@
+[tools]
+eza = "latest"          # ls代替
+fzf = "latest"          # ファジーファインダー
+gh = "latest"           # GitHub CLI
+ripgrep = "latest"      # grep代替
+bat = "latest"          # cat代替
+fd = "latest"           # find代替
+delta = "latest"        # git diff代替
+zoxide = "latest"       # z代替
+dust = "latest"         # du代替
+sd = "latest"           # sed代替
+jj = "latest"           # git代替
+
+claude = { version = "latest", bin = "claude", platforms = """
+[linux-arm64]
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{version}/linux-arm64/claude"
+
+[linux-x64]
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{version}/linux-x64/claude"
+
+[macos-arm64]
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{version}/darwin-arm64/claude"
+
+[macos-x64]
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{version}/darwin-x64/claude"
+""", version_list_url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/stable" }
