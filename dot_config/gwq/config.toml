@@ -1,6 +1,3 @@
-[worktree]
-basedir = "~/ghq"              # ghq rootと統合
-
 [naming]
 template = "{{.Host}}/{{.Owner}}/{{.Repository}}/{{.Branch}}"
 
@@ -8,7 +5,7 @@ template = "{{.Host}}/{{.Owner}}/{{.Repository}}/{{.Branch}}"
 copy_files = [".env", ".env.local", "CLAUDE.md", ".claude/settings.json"]
 
 # worktree作成後の自動セットアップ
-setup_commands = ["npm install"]
+setup_commands = []
 
 # 不要worktreeの自動クリーンアップ（例: 7日で期限切れ）
 ttl = "7d"

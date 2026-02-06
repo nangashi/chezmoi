@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+GHQ_ROOT=$(ghq root)
+
 changeSession() {
   local change
   [[ -n "${TMUX:-""}" ]] && change="switch-client" || change="attach-session"
@@ -10,28 +12,77 @@ changeSession() {
 
 createSessionIfNeeded() {
   local name=$1
-  [[ -n "$2" ]] && dir=$2 || dir=$(pwd)
-  tmux list-sessions -F "#{session_name}" |
+  local dir=${2:-$(pwd)}
+  tmux list-sessions -F "#{session_name}" 2>/dev/null |
     grep -q -E "^${name}$" ||
     tmux new-session -d -c "${dir}" -s "${name}"
 }
 
+buildWorktreeList() {
+  # gwqが利用可能な場合、グローバルワークツリー一覧を取得
+  if ! command -v gwq &> /dev/null; then
+    return
+  fi
+
+  local json
+  json=$(gwq list -g --json 2>/dev/null) || return 0
+
+  # JSONから各worktreeのパスとブランチ名を抽出
+  # naming template "Host/Owner/Repository/Branch" に基づき、パス末尾4階層からリポジトリパスを算出
+  echo "$json" | jq -r '.[] | .path as $path | .branch as $branch |
+    # パス末尾4階層のうち先頭3つ（Host/Owner/Repository）を取得
+    ($path | split("/") | .[-4:-1] | join("/")) |
+    # "リポジトリパス [ブランチ名]\tworktree絶対パス" 形式で出力
+    . + " [" + $branch + "]\t" + $path'
+}
+
 selectRepo() {
-  echo "$(ghq root)/$(ghq list | fzf)"
+  local ghq_list worktree_list combined
+
+  # ghqリポジトリ一覧
+  ghq_list=$(ghq list)
+
+  # gwqワークツリー一覧（タブ区切りで絶対パスを保持）
+  worktree_list=$(buildWorktreeList)
+
+  # マージしてfzfで選択（表示はタブより前の部分のみ）
+  combined=$(printf "%s\n%s" "$ghq_list" "$worktree_list" | sed '/^$/d' | sort)
+  echo "$combined" | fzf --with-nth=1 -d '\t'
 }
 
 main() {
   if [ $# -eq 1 ]; then
-    createSessionIfNeeded $1
-    changeSession $1
+    createSessionIfNeeded "$1"
+    changeSession "$1"
     exit
   fi
 
-  local repo="$(selectRepo)"
-  local session="$(echo "$repo" | awk -F/ '{ print $NF }')"
+  local selected
+  selected=$(selectRepo)
+  [ -z "$selected" ] && exit 0
 
-  createSessionIfNeeded $session $repo
-  changeSession $session
+  if [[ "$selected" == *$'\t'* ]]; then
+    # タブが含まれている → gwqワークツリーが選択された
+    local display dir branch repo_path repo_name sanitized_branch session
+    display=$(echo "$selected" | cut -f1)
+    dir=$(echo "$selected" | cut -f2)
+    branch=$(echo "$display" | grep -oP '\[\K[^\]]+')
+    repo_path=$(echo "$display" | sed 's/ \[.*$//')
+    repo_name=$(echo "$repo_path" | awk -F/ '{ print $NF }')
+    sanitized_branch=$(echo "$branch" | tr '/' '-')
+    session="${repo_name}@${sanitized_branch}"
+
+    createSessionIfNeeded "$session" "$dir"
+    changeSession "$session"
+  else
+    # 通常のghqリポジトリ
+    local repo session
+    repo="${GHQ_ROOT}/${selected}"
+    session=$(echo "$selected" | awk -F/ '{ print $NF }')
+
+    createSessionIfNeeded "$session" "$repo"
+    changeSession "$session"
+  fi
 }
 
-main
+main "$@"
