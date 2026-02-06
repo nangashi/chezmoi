@@ -166,3 +166,18 @@ gb() {
         echo "ブランチの作成に失敗しました"
     fi
 }
+
+# gwq session
+tm2() {
+    local selected=$(ghq list --full-path | fzf --reverse --preview 'git -C {} log --oneline -5')
+    [ -z "$selected" ] && return
+
+    local session_name=$(basename "$selected" | tr '.=' '-')
+
+    if tmux has-session -t "$session_name" 2>/dev/null; then
+      tmux switch-client -t "$session_name"
+    else
+      tmux new-session -d -s "$session_name" -c "$selected"
+      tmux switch-client -t "$session_name"
+    fi
+  }
