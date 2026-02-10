@@ -2,7 +2,7 @@
 {{- $git_email := or (env "GIT_EMAIL") (promptStringOnce . "email" "Email address for git (name@example.com)") -}}
 {{- $windows_username := or (env "WINDOWS_USERNAME") (promptStringOnce . "windows_username" "Windows username") -}}
 
-sourceDir = "/home/toyama-ryosuke/ghq/github.com/nangashi/chezmoi"
+sourceDir = "~/ghq/github.com/nangashi/chezmoi"
 
 [data]
     git_name = {{ $git_name | quote }}
