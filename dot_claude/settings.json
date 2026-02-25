@@ -1,23 +1,24 @@
 {
-    "$schema": "https://json.schemastore.org/claude-code-settings.json",
-    "permissions": {
-      "allow": [
-        "WebSearch",
-        "Bash(git *)",
-        "Bash(ls *)",
-        "Bash(find *)",
-        "Bash(grep *)",
-        "Bash(wc *)"
-      ],
-      "deny": [
-        "Bash(git push*)"
-      ]
-    },
-    "env": {
-      "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-    },
-    "statusLine": {
-      "type": "command",
-      "command": "bash /home/toyama-ryosuke/.claude/statusline-command.sh"
-    }
-  }
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(git *)",
+      "Bash(ls *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(wc *)"
+    ],
+    "deny": [
+      "Bash(git push*)"
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash /home/toyama-ryosuke/.claude/statusline-command.sh"
+  },
+  "skipDangerousModePermissionPrompt": true
+}
