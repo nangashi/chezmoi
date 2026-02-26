@@ -35,9 +35,5 @@ apply = ["defer"]
 github = "zsh-users/zsh-completions"
 apply = ["defer"]
 
-[plugins.zsh-z]
-github = "agkozak/zsh-z"
-apply = ["defer"]
-
 [plugins.zsh-abbr]
 github = "olets/zsh-abbr"

@@ -52,13 +52,13 @@ Defined in `.chezmoi.toml.tmpl`, prompted on first init:
 ### Managed Tools (via mise)
 - `eza`: Modern ls replacement (latest)
 - `fzf`: Fuzzy finder (latest)
+- `zoxide`: Smart directory jumper (latest)
 
 ### Zsh Plugins (via sheldon)
 - `powerlevel10k`: Theme
 - `zsh-autosuggestions`: Command suggestions
 - `zsh-syntax-highlighting`: Syntax highlighting
 - `zsh-completions`: Enhanced completions
-- `zsh-z`: Directory jumping
 - `zsh-abbr`: Abbreviation expansion
 - `zsh-defer`: Lazy loading plugin
 
@@ -85,7 +85,7 @@ Located at lines 105-161:
 - `ll` → Long format with all files (line 38)
 
 ### Key Bindings
-- `^f` (Ctrl+F) → `fzf-z-search` - Interactive z directory search (line 101)
+- `^f` (Ctrl+F) → `fzf-zoxide-search` - Interactive zoxide directory search
 
 ## WSL2 Integration
 
