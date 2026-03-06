@@ -1,0 +1,96 @@
+#!/bin/bash
+
+# Difit auto-detect script for Windows Terminal + WSL2
+# Automatically detects git state and opens appropriate diff view with difit in browser
+# Requires: difit, fnm (optional)
+
+# カレントディレクトリを使用（cmuxのようなAPI取得はできないため）
+targetDir="$(pwd)"
+
+if [[ -z "$targetDir" ]]; then
+    echo "Error: Could not detect current directory" >&2
+    exit 1
+fi
+
+cd "$targetDir" || exit 1
+
+# gitリポジトリかチェック
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    echo "Error: Not a git repository: $targetDir" >&2
+    exit 1
+fi
+
+echo "🔍 Detecting git state in: $targetDir"
+currentBranch=$(git rev-parse --abbrev-ref HEAD)
+
+# デフォルトブランチを検出（origin/HEAD → origin/main → origin/master → HEAD）
+defaultBranch=$(git symbolic-ref refs/remotes/origin/HEAD --short 2>/dev/null)
+if [[ -z "$defaultBranch" ]]; then
+    if git rev-parse --verify origin/main >/dev/null 2>&1; then
+        defaultBranch="origin/main"
+    elif git rev-parse --verify origin/master >/dev/null 2>&1; then
+        defaultBranch="origin/master"
+    fi
+fi
+
+# untrackedファイルを一時的にintent-to-addで追加
+untracked=$(git ls-files --others --exclude-standard)
+if [[ -n "$untracked" ]]; then
+    echo "📄 Including $(echo "$untracked" | wc -l) untracked files"
+    echo "$untracked" | xargs git add -N
+fi
+
+# trapで終了時にサーバーも終了させる
+DIFIT_PID=""
+cleanup() {
+    if [[ -n "$DIFIT_PID" ]]; then
+        kill "$DIFIT_PID" 2>/dev/null
+    fi
+    exit
+}
+trap cleanup EXIT INT TERM
+
+# difitコマンドを解決（fnmがあれば使う、なければ直接呼ぶ）
+if command -v fnm &>/dev/null; then
+    DIFIT_CMD="fnm exec --using default difit"
+else
+    DIFIT_CMD="difit"
+fi
+
+echo "🚀 Starting difit server..."
+if [[ -z "$defaultBranch" ]] || [[ "$currentBranch" == "${defaultBranch#origin/}" ]]; then
+    # デフォルトブランチ上、またはリモートなし → HEADとのdiff
+    git diff HEAD | $DIFIT_CMD --mode unified --no-open --clean &
+else
+    mergeBase=$(git merge-base HEAD "$defaultBranch" 2>/dev/null)
+    if [[ -z "$mergeBase" ]]; then
+        # merge-base失敗時はHEADとのdiffにフォールバック
+        git diff HEAD | $DIFIT_CMD --mode unified --no-open --clean &
+    else
+        echo "🔀 Branch: $currentBranch (base: ${defaultBranch#origin/})"
+        git diff "$mergeBase" | $DIFIT_CMD --mode unified --no-open --clean &
+    fi
+fi
+DIFIT_PID=$!
+
+# サーバーが起動するまで待機
+echo "⏳ Waiting for server to start..."
+while ! curl -s http://localhost:4966/ > /dev/null 2>&1; do
+    sleep 0.5
+done
+
+echo "🌐 Opening browser..."
+
+# Windowsのデフォルトブラウザで開く（WSL2からWindows側を呼び出す）
+if command -v powershell.exe &>/dev/null; then
+    powershell.exe /c start http://localhost:4966/
+elif command -v cmd.exe &>/dev/null; then
+    cmd.exe /c start http://localhost:4966/
+else
+    # ネイティブLinux環境の場合
+    xdg-open http://localhost:4966/
+fi
+
+# ブラウザがページを読み込むまで待ってからサーバー停止
+sleep 3
+kill "$DIFIT_PID" 2>/dev/null

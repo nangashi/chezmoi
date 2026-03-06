@@ -26,6 +26,8 @@ buildWorktreeList() {
 
   local json
   json=$(gwq list -g --json 2>/dev/null) || return 0
+  # gwqはworktreeが無い場合にJSONではなくテキストメッセージを返すためチェック
+  [[ -z "$json" || "$json" != "["* ]] && return 0
 
   # JSONから各worktreeのパスとブランチ名を抽出
   # naming template "Host/Owner/Repository/Branch" に基づき、パス末尾4階層からリポジトリパスを算出
@@ -47,7 +49,46 @@ selectRepo() {
 
   # マージしてfzfで選択（表示はタブより前の部分のみ）
   combined=$(printf "%s\n%s" "$ghq_list" "$worktree_list" | sed '/^$/d' | sort)
-  echo "$combined" | fzf --with-nth=1 -d '\t'
+  echo "$combined" | fzf --with-nth=1 -d '\t' \
+    --expect=ctrl-d \
+    --header='Enter:切替 / Ctrl-D:削除'
+}
+
+deleteWorktree() {
+  local selected=$1
+
+  # 通常ghqリポジトリ（タブなし）→ ベースリポジトリは削除不可
+  if [[ "$selected" != *$'\t'* ]]; then
+    echo "Error: ベースリポジトリは削除できません" >&2
+    exit 1
+  fi
+
+  local display dir branch repo_path repo_name sanitized_branch session
+  display=$(echo "$selected" | cut -f1)
+  dir=$(echo "$selected" | cut -f2)
+  branch=$(echo "$display" | grep -oP '\[\K[^\]]+')
+  repo_path=$(echo "$display" | sed 's/ \[.*$//')
+  repo_name=$(echo "$repo_path" | awk -F/ '{ print $NF }')
+  sanitized_branch=$(echo "$branch" | tr '/' '-')
+  session="${repo_name}@${sanitized_branch}"
+
+  # main/master ブランチ保護
+  if [[ "$branch" == "main" || "$branch" == "master" ]]; then
+    echo "Error: ${branch} ブランチは削除できません" >&2
+    exit 1
+  fi
+
+  # 確認プロンプト
+  read -r -p "Delete ${session}? (y/N): " confirm
+  if [[ "$confirm" != "y" ]]; then
+    exit 0
+  fi
+
+  # tmux セッション削除
+  tmux kill-session -t "$session" 2>/dev/null || true
+
+  # ワークツリー+ブランチ削除
+  (cd "${GHQ_ROOT}/${repo_path}" && gwq remove -b "$branch")
 }
 
 main() {
@@ -57,9 +98,51 @@ main() {
     exit
   fi
 
-  local selected
-  selected=$(selectRepo)
+  if [ $# -eq 2 ]; then
+    local repo_id="$1"
+    local branch="$2"
+
+    local repo_path="${GHQ_ROOT}/${repo_id}"
+    if [ ! -d "$repo_path" ]; then
+      echo "Error: repository not found at '${repo_path}'" >&2
+      exit 1
+    fi
+
+    if ! (cd "$repo_path" && gwq add -b "$branch"); then
+      echo "Error: failed to create worktree for branch '${branch}'" >&2
+      exit 1
+    fi
+
+    local worktree_path
+    worktree_path=$(cd "$repo_path" && gwq get "$branch")
+    if [ -z "$worktree_path" ]; then
+      echo "Error: failed to get worktree path for branch '${branch}'" >&2
+      exit 1
+    fi
+
+    local repo_name
+    repo_name=$(basename "$repo_id")
+    local sanitized_branch
+    sanitized_branch=$(echo "$branch" | tr '/' '-')
+    local session="${repo_name}@${sanitized_branch}"
+
+    createSessionIfNeeded "$session" "$worktree_path"
+    changeSession "$session"
+    exit
+  fi
+
+  local result key selected
+  result=$(selectRepo)
+  [ -z "$result" ] && exit 0
+
+  key=$(echo "$result" | head -1)
+  selected=$(echo "$result" | sed -n '2p')
   [ -z "$selected" ] && exit 0
+
+  if [[ "$key" == "ctrl-d" ]]; then
+    deleteWorktree "$selected"
+    exit
+  fi
 
   if [[ "$selected" == *$'\t'* ]]; then
     # タブが含まれている → gwqワークツリーが選択された
