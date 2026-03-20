@@ -6,15 +6,8 @@
     "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
     "CLAUDE_CODE_ENABLE_TELEMETRY": "0"
   },
-  "sandbox": {
-    "enabled": true,
-    "filesystem": {
-      "allowWrite": [
-        "//tmp/claude-1000"
-      ]
-    }
-  },
   "permissions": {
+    "disableBypassPermissionsMode": "disable",
     "allow": [
       "WebSearch",
       "Bash(git *)",
@@ -23,17 +16,48 @@
       "Bash(grep *)",
       "Bash(wc *)"
     ],
+    "ask": [
+      "Bash(git push*)",
+      "Bash(curl *)",
+      "Bash(wget *)"
+    ],
     "deny": [
-      "Bash(git push*)"
+      "Bash(rm -rf *)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/*.pem)"
     ]
   },
   "statusLine": {
     "type": "command",
     "command": "bash ~/.claude/statusline-command.sh"
   },
-  "skipDangerousModePermissionPrompt": true,
-  "effortLevel": "high",
   "enabledPlugins": {
-    "rust-analyzer-lsp@claude-plugins-official": true
-  }
+    "skill-creator@claude-plugins-official": true
+  },
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowedDomains": [
+        "github.com",
+        "api.github.com",
+        "*.githubusercontent.com",
+        "registry.npmjs.org",
+        "*.npmjs.org"
+      ]
+    },
+    "filesystem": {
+      "allowWrite": [
+        "~/.local/share/pnpm",
+        "~/go"
+      ],
+      "denyRead": [
+        "~/.ssh"
+      ]
+    }
+  },
+  "effortLevel": "high",
+  "skipDangerousModePermissionPrompt": true,
+  "cleanupPeriodDays": 999
 }

@@ -1,0 +1,317 @@
+#!/usr/bin/env bash
+# =============================================================================
+# pcc - Podman Claude Code
+#
+# cwd から推定したリポジトリのコンテナで claude を直接実行する。
+# tmux 非依存。素のターミナルでもそのまま動く。
+#
+# Usage:
+#   pcc                    main ブランチで claude 起動
+#   pcc -b <branch>        worktree 作成（既存なら再利用）→ claude 起動
+#   pcc -b                 ブランチ名自動生成 → worktree → claude 起動
+#   pcc build              コンテナイメージビルド
+#   pcc status             稼働中コンテナ + worktree 一覧
+#   pcc down [repo-id]     コンテナ停止
+#   pcc rm <branch>        worktree + ブランチ削除
+#   pcc exec <cmd...>      コンテナ内で任意コマンド実行
+# =============================================================================
+set -euo pipefail
+
+# --- Configuration -----------------------------------------------------------
+GHQ_ROOT="${GHQ_ROOT:-$(ghq root 2>/dev/null || echo "$HOME/ghq")}"
+PCC_IMAGE="${PCC_IMAGE:-claude-dev:latest}"
+PCC_CONFIG_DIR="${PCC_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/pcc}"
+PCC_MEM_LIMIT="${PCC_MEM_LIMIT:-16g}"
+PCC_SWAP_LIMIT="${PCC_SWAP_LIMIT:-${PCC_MEM_LIMIT}}"
+PCC_WORKTREE_DIR=".worktrees"
+
+# --- Helpers -----------------------------------------------------------------
+
+_container_name() {
+  local repo_name
+  repo_name=$(basename "$1")
+  echo "pcc-$(echo "$repo_name" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g')"
+}
+
+_is_running() {
+  local name
+  name=$(_container_name "$1")
+  [[ "$(podman container inspect "$name" --format '{{.State.Running}}' 2>/dev/null)" == "true" ]]
+}
+
+_infer_repo_id() {
+  local cwd
+  cwd=$(pwd)
+  if [[ "$cwd" == "${GHQ_ROOT}/"* ]]; then
+    echo "${cwd#${GHQ_ROOT}/}" | cut -d/ -f1-3
+  else
+    echo "Error: ghq 管理下のディレクトリで実行してください" >&2
+    return 1
+  fi
+}
+
+_generate_branch_name() {
+  echo "pcc/$(head -c3 /dev/urandom | xxd -p)"
+}
+
+# --- Container lifecycle -----------------------------------------------------
+
+_start_container() {
+  local repo_id="$1"
+  local name repo_path
+  name=$(_container_name "$repo_id")
+  repo_path="${GHQ_ROOT}/${repo_id}"
+
+  _is_running "$repo_id" && return 0
+
+  podman rm -f "$name" 2>/dev/null || true
+
+  if [[ ! -d "$repo_path" ]]; then
+    echo "Error: repository not found at '${repo_path}'" >&2
+    return 1
+  fi
+
+  local -a mounts=(
+    -v "${repo_path}:/workspace:Z"
+    -v "${HOME}/.claude:/home/dev/.claude:Z"
+  )
+  [[ -d "${HOME}/.ssh" ]] && mounts+=(-v "${HOME}/.ssh:/home/dev/.ssh:ro,Z")
+  [[ -f "${HOME}/.gitconfig" ]] && mounts+=(-v "${HOME}/.gitconfig:/home/dev/.gitconfig:ro,Z")
+
+  podman run -d \
+    --name "$name" \
+    --hostname "$name" \
+    --memory "${PCC_MEM_LIMIT}" \
+    --memory-swap "${PCC_SWAP_LIMIT}" \
+    --userns keep-id \
+    "${mounts[@]}" \
+    -w /workspace \
+    "${PCC_IMAGE}" >/dev/null
+
+  echo "Started: ${name}" >&2
+}
+
+_stop_container() {
+  local repo_id="$1"
+  local name
+  name=$(_container_name "$repo_id")
+
+  podman stop "$name" 2>/dev/null || true
+  podman rm "$name" 2>/dev/null || true
+  echo "Stopped: ${name}" >&2
+}
+
+# --- Worktree management -----------------------------------------------------
+
+_create_worktree() {
+  local repo_id="$1" branch="$2"
+  local name
+  name=$(_container_name "$repo_id")
+  local wt_dir="/workspace/${PCC_WORKTREE_DIR}/${branch}"
+
+  podman exec "$name" bash -c "
+    cd /workspace
+    if [ ! -d '${wt_dir}' ]; then
+      mkdir -p '/workspace/${PCC_WORKTREE_DIR}'
+      git worktree add '${wt_dir}' '${branch}' 2>/dev/null \
+        || git worktree add -b '${branch}' '${wt_dir}'
+    fi
+  " 2>/dev/null
+}
+
+_remove_worktree() {
+  local repo_id="$1" branch="$2"
+  local name
+  name=$(_container_name "$repo_id")
+
+  if [[ "$branch" == "main" || "$branch" == "master" ]]; then
+    echo "Error: ${branch} は削除できません" >&2
+    return 1
+  fi
+
+  podman exec "$name" bash -c "
+    cd /workspace
+    git worktree remove '${PCC_WORKTREE_DIR}/${branch}' --force 2>/dev/null || true
+    git branch -d '${branch}' 2>/dev/null || true
+  " 2>/dev/null
+  echo "Removed: ${branch}" >&2
+}
+
+_list_worktrees() {
+  local repo_id="$1"
+  local name
+  name=$(_container_name "$repo_id")
+
+  _is_running "$repo_id" || return 0
+
+  podman exec "$name" bash -c '
+    cd /workspace 2>/dev/null || exit 0
+    git worktree list --porcelain 2>/dev/null | awk "
+      /^worktree / { path=\$2 }
+      /^branch /   { branch=\$2; sub(/refs\/heads\//, \"\", branch)
+                     if (path != \"/workspace\") print branch \"\t\" path }
+    "
+  ' 2>/dev/null
+}
+
+# --- Connect -----------------------------------------------------------------
+
+_connect() {
+  local repo_id="$1" branch="${2:-}"
+
+  _start_container "$repo_id"
+
+  local name workdir
+  name=$(_container_name "$repo_id")
+
+  if [[ -n "$branch" ]]; then
+    _create_worktree "$repo_id" "$branch"
+    workdir="/workspace/${PCC_WORKTREE_DIR}/${branch}"
+  else
+    workdir="/workspace"
+  fi
+
+  podman exec -it -w "$workdir" "$name" claude
+}
+
+# =============================================================================
+# Subcommands
+# =============================================================================
+
+cmd_build() {
+  echo "==> Building image: ${PCC_IMAGE}"
+  podman build -t "${PCC_IMAGE}" "${PCC_CONFIG_DIR}"
+}
+
+cmd_status() {
+  echo "==> Containers:"
+  podman ps --filter "name=^pcc-" --format "table {{.Names}}\t{{.Status}}" 2>/dev/null || true
+  echo ""
+  echo "==> Resources:"
+  podman stats --no-stream --filter "name=^pcc-" \
+    --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}" 2>/dev/null || true
+  echo ""
+  echo "==> Worktrees:"
+  podman ps --filter "name=^pcc-" --format "{{.Names}}" 2>/dev/null | while read -r cname; do
+    local repo_id
+    # Reverse lookup: find repo_id by trying ghq list
+    while IFS= read -r rid; do
+      [[ "$(_container_name "$rid")" == "$cname" ]] && repo_id="$rid" && break
+    done <<< "$(ghq list 2>/dev/null)"
+    if [[ -n "${repo_id:-}" ]]; then
+      local wt
+      wt=$(_list_worktrees "$repo_id")
+      if [[ -n "$wt" ]]; then
+        echo "  ${cname}:"
+        echo "$wt" | while IFS=$'\t' read -r branch path; do
+          echo "    ${branch}  ${path}"
+        done
+      fi
+    fi
+  done
+}
+
+cmd_down() {
+  local repo_id="${1:-}"
+  if [[ -z "$repo_id" ]]; then
+    repo_id=$(_infer_repo_id) || return 1
+  fi
+  _stop_container "$repo_id"
+}
+
+cmd_rm() {
+  local branch="${1:?Usage: pcc rm <branch>}"
+  local repo_id
+  repo_id=$(_infer_repo_id) || return 1
+
+  _is_running "$repo_id" || {
+    echo "Error: container is not running" >&2
+    return 1
+  }
+
+  _remove_worktree "$repo_id" "$branch"
+}
+
+cmd_exec() {
+  local repo_id
+  repo_id=$(_infer_repo_id) || return 1
+  local name
+  name=$(_container_name "$repo_id")
+  _is_running "$repo_id" || { echo "Error: not running" >&2; return 1; }
+  podman exec -it "$name" "$@"
+}
+
+# =============================================================================
+# Main
+# =============================================================================
+
+# Parse -b flag
+branch_flag=""
+branch_value=""
+args=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -b)
+      branch_flag=1
+      if [[ $# -ge 2 && ! "$2" =~ ^- ]]; then
+        branch_value="$2"
+        shift
+      fi
+      shift
+      ;;
+    *)
+      args+=("$1")
+      shift
+      ;;
+  esac
+done
+
+set -- "${args[@]+"${args[@]}"}"
+cmd="${1:-}"
+
+case "$cmd" in
+  build)       cmd_build ;;
+  status|st)   cmd_status ;;
+  down)        shift; cmd_down "${1:-}" ;;
+  rm)          shift; cmd_rm "${1:-}" ;;
+  exec|e)      shift; cmd_exec "$@" ;;
+  help|-h|--help)
+    cat <<'EOF'
+pcc - Podman Claude Code
+
+Usage:
+  pcc                    main ブランチで claude 起動
+  pcc -b <branch>        worktree 作成（既存なら再利用）→ claude 起動
+  pcc -b                 ブランチ名自動生成 → worktree → claude 起動
+  pcc build              コンテナイメージビルド
+  pcc status             稼働中コンテナ + worktree 一覧
+  pcc down [repo-id]     コンテナ停止
+  pcc rm <branch>        worktree + ブランチ削除
+  pcc exec <cmd...>      コンテナ内で任意コマンド実行
+
+Environment:
+  PCC_IMAGE       (default: claude-dev:latest)
+  PCC_CONFIG_DIR  (default: ~/.config/pcc)
+  PCC_MEM_LIMIT   (default: 16g)
+  GHQ_ROOT        (default: $(ghq root))
+EOF
+    ;;
+  "")
+    repo_id=$(_infer_repo_id) || exit 1
+    if [[ -n "$branch_flag" ]]; then
+      if [[ -z "$branch_value" ]]; then
+        branch_value=$(_generate_branch_name)
+        echo "Branch: ${branch_value}" >&2
+      fi
+      _connect "$repo_id" "$branch_value"
+    else
+      _connect "$repo_id"
+    fi
+    ;;
+  *)
+    echo "Error: unknown subcommand '${cmd}'" >&2
+    echo "Run 'pcc help' for usage." >&2
+    exit 1
+    ;;
+esac

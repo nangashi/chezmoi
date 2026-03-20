@@ -1,0 +1,11 @@
+[naming]
+template = "{{.Host}}/{{.Owner}}/{{.Repository}}/{{.Branch}}"
+
+# .envやAI設定の自動コピー
+copy_files = [".env", ".env.local", "CLAUDE.md", ".claude/settings.json"]
+
+# worktree作成後の自動セットアップ
+setup_commands = []
+
+# 不要worktreeの自動クリーンアップ（例: 7日で期限切れ）
+ttl = "7d"
