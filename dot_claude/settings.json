@@ -1,13 +1,13 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "cleanupPeriodDays": 999,
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "ENABLE_TOOL_SEARCH": "1",
+    "ENABLE_TOOL_SEARCH": "true",
     "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
     "CLAUDE_CODE_ENABLE_TELEMETRY": "0"
   },
   "permissions": {
-    "disableBypassPermissionsMode": "disable",
     "allow": [
       "WebSearch",
       "Bash(git *)",
@@ -16,24 +16,35 @@
       "Bash(grep *)",
       "Bash(wc *)"
     ],
-    "ask": [
-      "Bash(git push*)",
-      "Bash(curl *)",
-      "Bash(wget *)"
-    ],
     "deny": [
       "Bash(rm -rf *)",
       "Read(./.env)",
       "Read(./.env.*)",
       "Read(**/*.pem)"
-    ]
+    ],
+    "ask": [
+      "Bash(git push*)",
+      "Bash(curl *)",
+      "Bash(wget *)"
+    ],
+    "defaultMode": "auto",
+    "disableBypassPermissionsMode": "disable"
   },
+  "model": "sonnet",
   "statusLine": {
     "type": "command",
     "command": "bash ~/.claude/statusline-command.sh"
   },
   "enabledPlugins": {
     "skill-creator@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
+      }
+    }
   },
   "sandbox": {
     "enabled": true,
@@ -44,13 +55,18 @@
         "api.github.com",
         "*.githubusercontent.com",
         "registry.npmjs.org",
-        "*.npmjs.org"
+        "*.npmjs.org",
+        "context7.com",
+        "mcp.context7.com"
       ]
     },
     "filesystem": {
       "allowWrite": [
+        "~/.cache",
         "~/.local/share/pnpm",
-        "~/go"
+        "~/go",
+        ".git",
+        ".git/worktrees"
       ],
       "denyRead": [
         "~/.ssh"
@@ -58,6 +74,5 @@
     }
   },
   "effortLevel": "high",
-  "skipDangerousModePermissionPrompt": true,
-  "cleanupPeriodDays": 999
+  "skipDangerousModePermissionPrompt": true
 }

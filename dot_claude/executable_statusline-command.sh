@@ -1,12 +1,9 @@
 #!/bin/bash
 # Claude Code statusline script (2-line)
-# Line 1: dir(branch) | model ctx% | tokens cache | time(API%) | +/-
-# Line 2: 5h: xx% left (resets HH:MM) | 7d: xx% left (resets M/D HH:MM)
+# Line 1: dir(branch) | model | tokens cache | time(API%) | +/-
+# Line 2: ctx [████░░░░░░] 42% │ 5h [████░░░░░░] 42% ↻15:00 │ 7d [████████░░] 86% ↻3/24
 
 input=$(cat)
-
-# ---------- Refresh usage cache in background ----------
-bash "$HOME/.claude/fetch-usage.sh" >/dev/null 2>&1 &
 
 # ---------- ANSI Colors ----------
 BLUE=$'\e[38;2;97;175;239m'
@@ -28,16 +25,6 @@ color_high_bad() {
   else printf '%s' "$GREEN"; fi
 }
 
-# ---------- Color by percentage (low = bad, for remaining%) ----------
-color_low_bad() {
-  local pct="$1"
-  if [ -z "$pct" ] || [ "$pct" = "null" ]; then printf '%s' "$GRAY"; return; fi
-  local i; i=$(printf "%.0f" "$pct" 2>/dev/null || echo 0)
-  if [ "$i" -le 14 ]; then printf '%s' "$RED"
-  elif [ "$i" -le 29 ]; then printf '%s' "$YELLOW"
-  else printf '%s' "$GREEN"; fi
-}
-
 # ---------- Color for cache hit rate (high = good) ----------
 color_cache() {
   local pct="$1"
@@ -48,7 +35,7 @@ color_cache() {
   else printf '%s' "$RED"; fi
 }
 
-# ---------- Progress bar (10 segments) ----------
+# ---------- Progress bar (10 segments, █░ style) ----------
 progress_bar() {
   local pct="$1"
   local filled; filled=$(awk "BEGIN{printf \"%d\", int($pct / 10 + 0.5)}" 2>/dev/null || echo 0)
@@ -56,7 +43,7 @@ progress_bar() {
   [ "$filled" -lt 0 ] 2>/dev/null && filled=0
   local bar=""
   for i in $(seq 1 10); do
-    if [ "$i" -le "$filled" ]; then bar="${bar}▓"; else bar="${bar}░"; fi
+    if [ "$i" -le "$filled" ]; then bar="${bar}█"; else bar="${bar}░"; fi
   done
   printf '%s' "$bar"
 }
@@ -96,7 +83,11 @@ eval "$(echo "$input" | jq -r '
   "cache_read=" + (.context_window.current_usage.cache_read_input_tokens // 0 | tostring),
   "cache_create=" + (.context_window.current_usage.cache_creation_input_tokens // 0 | tostring),
   "duration_ms=" + (.cost.total_duration_ms // 0 | tostring),
-  "api_ms=" + (.cost.total_api_duration_ms // 0 | tostring)
+  "api_ms=" + (.cost.total_api_duration_ms // 0 | tostring),
+  "five_used_pct=" + (.rate_limits.five_hour.used_percentage // empty | tostring),
+  "five_resets_at=" + (.rate_limits.five_hour.resets_at // "" | @sh),
+  "seven_used_pct=" + (.rate_limits.seven_day.used_percentage // empty | tostring),
+  "seven_resets_at=" + (.rate_limits.seven_day.resets_at // "" | @sh)
 ' 2>/dev/null)"
 
 # ---------- Git branch ----------
@@ -130,35 +121,24 @@ if [ "$duration_ms" -gt 0 ] 2>/dev/null && [ "$api_ms" -gt 0 ] 2>/dev/null; then
   api_pct=$(awk "BEGIN{printf \"%.0f\", $api_ms / $duration_ms * 100}")
 fi
 
-# ---------- Usage quota (from cached file) ----------
-USAGE_CACHE="$HOME/.claude/.usage-cache.json"
-five_used="--"
+# ---------- Rate limit reset times ----------
 five_reset=""
-seven_used="--"
+if [ -n "$five_resets_at" ] && [ "$five_resets_at" != "" ] && [ "$five_resets_at" != "0" ]; then
+  five_reset=$(date -d "@${five_resets_at}" '+%H:%M' 2>/dev/null || echo "")
+fi
 seven_reset=""
+if [ -n "$seven_resets_at" ] && [ "$seven_resets_at" != "" ] && [ "$seven_resets_at" != "0" ]; then
+  seven_reset=$(date -d "@${seven_resets_at}" '+%-m/%d %H:%M' 2>/dev/null || echo "")
+fi
 
-if [ -f "$USAGE_CACHE" ]; then
-  eval "$(jq -r '
-    "five_util=" + (.five_hour.utilization // 0 | tostring),
-    "five_resets_at=" + (.five_hour.resets_at // "" | @sh),
-    "seven_util=" + (.seven_day.utilization // 0 | tostring),
-    "seven_resets_at=" + (.seven_day.resets_at // "" | @sh)
-  ' "$USAGE_CACHE" 2>/dev/null)"
-
-  # utilization is already a percentage (e.g. 13.0 = 13%)
-  if [ -n "$five_util" ]; then
-    five_used=$(awk "BEGIN{printf \"%.0f\", $five_util}")
-  fi
-  if [ -n "$five_resets_at" ] && [ "$five_resets_at" != "" ]; then
-    five_reset=$(date -d "$five_resets_at" '+%H:%M' 2>/dev/null || echo "")
-  fi
-
-  if [ -n "$seven_util" ]; then
-    seven_used=$(awk "BEGIN{printf \"%.0f\", $seven_util}")
-  fi
-  if [ -n "$seven_resets_at" ] && [ "$seven_resets_at" != "" ]; then
-    seven_reset=$(date -d "$seven_resets_at" '+%-m/%d %H:%M' 2>/dev/null || echo "")
-  fi
+# ---------- Rate limit percentages ----------
+five_pct_int="--"
+if [ -n "$five_used_pct" ] && [ "$five_used_pct" != "null" ]; then
+  five_pct_int=$(printf "%.0f" "$five_used_pct" 2>/dev/null || echo "--")
+fi
+seven_pct_int="--"
+if [ -n "$seven_used_pct" ] && [ "$seven_used_pct" != "null" ]; then
+  seven_pct_int=$(printf "%.0f" "$seven_used_pct" 2>/dev/null || echo "--")
 fi
 
 # ---------- Build Line 1 ----------
@@ -171,9 +151,7 @@ else
   line1="${BLUE}${dir_name}${RESET}"
 fi
 
-ctx_color=$(color_high_bad "$ctx_pct_int")
-bar=$(progress_bar "$ctx_pct_int")
-line1+="${SEP}${WHITE}${model_name}${RESET} ${ctx_color}${bar} ${ctx_pct_int}%${RESET}"
+line1+="${SEP}${WHITE}${model_name}${RESET}"
 
 in_fmt=$(fmt_tokens "$total_in")
 out_fmt=$(fmt_tokens "$total_out")
@@ -187,28 +165,40 @@ if [ "$lines_added" -gt 0 ] 2>/dev/null || [ "$lines_removed" -gt 0 ] 2>/dev/nul
   line1+="${SEP}${GREEN}+${lines_added}${RESET}${GRAY}/${RESET}${RED}-${lines_removed}${RESET}"
 fi
 
-# ---------- Build Line 2 ----------
+# ---------- Build Line 2 (3 progress bars) ----------
 line2=""
-if [ "$five_used" != "--" ]; then
-  five_color=$(color_high_bad "$five_used")
-  line2="${five_color}5h: ${five_used}% used${RESET}"
+
+# Context bar
+ctx_color=$(color_high_bad "$ctx_pct_int")
+ctx_bar=$(progress_bar "$ctx_pct_int")
+line2+="${WHITE}ctx ${ctx_color}${ctx_bar} ${ctx_pct_int}%${RESET}"
+
+line2+="${SEP}"
+
+# 5-hour bar
+if [ "$five_pct_int" != "--" ]; then
+  five_color=$(color_high_bad "$five_pct_int")
+  five_bar=$(progress_bar "$five_pct_int")
+  line2+="${WHITE}5h ${five_color}${five_bar} ${five_pct_int}%${RESET}"
   if [ -n "$five_reset" ]; then
-    line2+=" ${GRAY}(resets ${five_reset})${RESET}"
+    line2+=" ${GRAY}↻${five_reset}${RESET}"
   fi
 else
-  line2="${GRAY}5h: --% ${RESET}"
+  line2+="${GRAY}5h ░░░░░░░░░░ --%${RESET}"
 fi
 
 line2+="${SEP}"
 
-if [ "$seven_used" != "--" ]; then
-  seven_color=$(color_high_bad "$seven_used")
-  line2+="${seven_color}7d: ${seven_used}% used${RESET}"
+# 7-day bar
+if [ "$seven_pct_int" != "--" ]; then
+  seven_color=$(color_high_bad "$seven_pct_int")
+  seven_bar=$(progress_bar "$seven_pct_int")
+  line2+="${WHITE}7d ${seven_color}${seven_bar} ${seven_pct_int}%${RESET}"
   if [ -n "$seven_reset" ]; then
-    line2+=" ${GRAY}(resets ${seven_reset})${RESET}"
+    line2+=" ${GRAY}↻${seven_reset}${RESET}"
   fi
 else
-  line2+="${GRAY}7d: --%${RESET}"
+  line2+="${GRAY}7d ░░░░░░░░░░ --%${RESET}"
 fi
 
 # ---------- Output ----------
