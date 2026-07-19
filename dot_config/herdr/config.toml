@@ -1,0 +1,99 @@
+# herdr configuration
+# Based on ~/.tmux.conf where Herdr has equivalent behavior.
+
+onboarding = false
+
+[keys]
+prefix = "ctrl+t"
+
+# tmux-like pane movement.
+focus_pane_left = "prefix+h"
+focus_pane_down = "prefix+j"
+focus_pane_up = "prefix+k"
+focus_pane_right = "prefix+l"
+
+# Match tmux split bindings: prefix+- for down, prefix+| for right.
+split_horizontal = "prefix+minus"
+split_vertical = "prefix+|"
+
+copy_mode = "prefix+["
+reload_config = "prefix+r"
+resize_mode = ""
+
+# Free shift+h/j/k/l for tmux-style resize commands below.
+swap_pane_left = ""
+swap_pane_down = ""
+swap_pane_up = ""
+swap_pane_right = ""
+
+new_tab = "prefix+c"
+previous_tab = "prefix+p"
+next_tab = "prefix+n"
+switch_tab = "prefix+1..9"
+previous_workspace = "prefix+left"
+next_workspace = "prefix+right"
+close_pane = "prefix+x"
+zoom = "prefix+z"
+detach = "prefix+q"
+toggle_sidebar = "prefix+b"
+
+[[keys.command]]
+key = "prefix+shift+h"
+type = "shell"
+command = "/home/toyama-ryosuke/.local/bin/herdr pane resize --direction left --amount 1 --current"
+description = "resize pane left"
+
+[[keys.command]]
+key = "prefix+shift+j"
+type = "shell"
+command = "/home/toyama-ryosuke/.local/bin/herdr pane resize --direction down --amount 1 --current"
+description = "resize pane down"
+
+[[keys.command]]
+key = "prefix+shift+k"
+type = "shell"
+command = "/home/toyama-ryosuke/.local/bin/herdr pane resize --direction up --amount 1 --current"
+description = "resize pane up"
+
+[[keys.command]]
+key = "prefix+shift+l"
+type = "shell"
+command = "/home/toyama-ryosuke/.local/bin/herdr pane resize --direction right --amount 1 --current"
+description = "resize pane right"
+
+[[keys.command]]
+key = "prefix+g"
+type = "popup"
+description = "Git"
+width = "90%"
+height = "90%"
+command = "lazygit"
+
+[[keys.command]]
+key = "prefix+f"
+type = "popup"
+description = "File Viewer"
+width = "90%"
+height = "90%"
+command = '''PLUGIN_DIR="$(herdr plugin list --json | jq -r '.result.plugins[] | select(.plugin_id=="herdr-file-viewer") | .plugin_root')" && CONFIG_DIR="$(herdr plugin config-dir herdr-file-viewer)" && HERDR_PLUGIN_CONFIG_DIR="$CONFIG_DIR" exec "$PLUGIN_DIR/target/release/herdr-file-viewer"'''
+
+[theme]
+name = "terminal"
+
+[ui]
+mouse_capture = true
+pane_borders = true
+pane_gaps = false
+show_agent_labels_on_pane_borders = true
+
+[session]
+resume_agents_on_restore = true
+
+[experimental]
+pane_history = true
+switch_ascii_input_source_in_prefix = true
+reveal_hidden_cursor_for_cjk_ime = true
+cjk_ime_agents = ["codex", "claude", "gemini"]
+
+[advanced]
+scrollback_limit_bytes = 10000000

@@ -2,10 +2,10 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "cleanupPeriodDays": 999,
   "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "ENABLE_TOOL_SEARCH": "true",
     "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
-    "CLAUDE_CODE_ENABLE_TELEMETRY": "0"
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "ENABLE_TOOL_SEARCH": "true"
   },
   "permissions": {
     "allow": [
@@ -14,7 +14,8 @@
       "Bash(ls *)",
       "Bash(find *)",
       "Bash(grep *)",
-      "Bash(wc *)"
+      "Bash(wc *)",
+      "Bash(node \"/home/toyama-ryosuke/.claude/plugins/cache/openai-codex/codex/1.0.0/scripts/codex-companion.mjs\" task *)"
     ],
     "deny": [
       "Bash(rm -rf *)",
@@ -30,12 +31,27 @@
     "defaultMode": "auto",
     "disableBypassPermissionsMode": "disable"
   },
-  "model": "sonnet",
+  "model": "claude-fable-5[1m]",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/home/toyama-ryosuke/.claude/hooks/herdr-agent-state.sh' session",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
   "statusLine": {
     "type": "command",
     "command": "bash ~/.claude/statusline-command.sh"
   },
   "enabledPlugins": {
+    "codex@openai-codex": true,
     "skill-creator@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
@@ -65,8 +81,11 @@
         "~/.cache",
         "~/.local/share/pnpm",
         "~/go",
+        "~/.agents",
         ".git",
-        ".git/worktrees"
+        ".git/worktrees",
+        "~/.claude/plugins/data",
+        "~/.codex"
       ],
       "denyRead": [
         "~/.ssh"
@@ -74,5 +93,9 @@
     }
   },
   "effortLevel": "high",
-  "skipDangerousModePermissionPrompt": true
+  "tui": "fullscreen",
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "dark-ansi",
+  "remoteControlAtStartup": false,
+  "skipAutoPermissionPrompt": true
 }

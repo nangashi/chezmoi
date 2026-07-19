@@ -1,30 +1,6 @@
-# chezmoi init用の設定保持
-export GIT_NAME={{ .git_name }}
-export GIT_EMAIL={{ .git_email }}
-export WINDOWS_USERNAME={{ .windows_username }}
-
-# ローカルbinディレクトリをPATHに追加
-export PATH="$HOME/.local/bin:$PATH"
-
-# cursor導入時にcodeコマンドでvscodeを起動するようにパスを追加
-export PATH="/mnt/c/Users/{{ .windows_username }}/AppData/Local/Programs/Microsoft VS Code/bin:$PATH"
-
-# ブラウザ設定
-export BROWSER="/mnt/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
-
-# brew
-if [ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
-  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-fi
-
 # p10kの有効化
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
-
-# mise
-if command -v mise &> /dev/null; then
-  eval "$(mise activate zsh)"
 fi
 
 # zshパッケージ管理Sheldonの有効化
