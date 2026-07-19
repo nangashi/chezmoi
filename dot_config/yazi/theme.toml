@@ -1,0 +1,7 @@
+[git]
+untracked_sign = "? "
+modified_sign  = "M "
+added_sign     = "A "
+deleted_sign   = "D "
+updated_sign   = "U "
+ignored_sign   = "! "

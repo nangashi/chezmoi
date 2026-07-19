@@ -7,3 +7,12 @@ group = "git"
 url   = "*/"
 run   = "git"
 group = "git"
+
+[[opener.glow]]
+run   = "glow --tui %s1"
+block = true
+desc  = "Open with Glow"
+
+[[open.prepend_rules]]
+url = "*.{md,markdown}"
+use = [ "glow", "edit" ]
