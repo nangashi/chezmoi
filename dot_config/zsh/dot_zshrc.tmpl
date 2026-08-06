@@ -67,18 +67,22 @@ if command -v fzf &> /dev/null; then
     --color=bg+:#293739,bg:#1B1D1E,border:#808080,spinner:#E6DB74,hl:#7E8E91,fg:#F8F8F2,header:#7E8E91,info:#A6E22E,pointer:#A6E22E,marker:#F92672,fg+:#F8F8F2,prompt:#F92672,hl+:#F92672
   '
 fi
-# zコマンド検索
-fzf-z-search() {
-    local res=$(z | sort -rn | cut -c 12- | fzf)
+# zoxide
+if command -v zoxide &> /dev/null; then
+  eval "$(zoxide init zsh)"
+fi
+# zoxide + fzf インタラクティブ検索
+fzf-zoxide-search() {
+    local res=$(zoxide query -l | fzf)
     if [ -n "$res" ]; then
-        BUFFER+="cd $res"
+        BUFFER="cd ${(q)res}"
         zle accept-line
     else
         return 1
     fi
 }
-zle -N fzf-z-search
-bindkey '^f' fzf-z-search
+zle -N fzf-zoxide-search
+bindkey '^f' fzf-zoxide-search
 # ==================================================
 # スクリプト
 # ==================================================
