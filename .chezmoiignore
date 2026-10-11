@@ -1,3 +1,5 @@
 README.md
 CLAUDE.md
 .editorconfig
+tests
+tests/**

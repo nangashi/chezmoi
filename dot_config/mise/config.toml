@@ -1,23 +1,24 @@
 [tools]
-eza = "latest"          # ls代替
-fzf = "latest"          # ファジーファインダー
-gh = "latest"           # GitHub CLI
-ripgrep = "latest"      # grep代替
-bat = "latest"          # cat代替
-fd = "latest"           # find代替
-delta = "latest"        # git diff代替
-zoxide = "latest"       # z代替
-dust = "latest"         # du代替
-sd = "latest"           # sed代替
-jj = "latest"           # git代替
+eza = "0.23.5"          # ls代替
+fzf = "0.74.5"          # ファジーファインダー
+gh = "2.102.0"          # GitHub CLI
+ripgrep = "15.2.0"      # grep代替
+bat = "0.26.1"          # cat代替
+fd = "10.5.0"           # find代替
+delta = "0.20.1"        # git diff代替
+zoxide = "0.10.0"       # z代替
+dust = "1.2.6"          # du代替
+sd = "1.1.0"            # sed代替
+jj = "0.46.0"           # git代替
+sheldon = "0.8.5"       # zshプラグインマネージャ
 
 node = "25.4.0"
 
-neovim = "latest"
-lazygit = "latest"
-ghq = "latest"
-"github:d-kuro/gwq" = "latest"
-jq = "latest"
-glow = "latest"
-"npm:hunk" = "latest"
-yazi = "latest"
+neovim = "0.12.6"
+lazygit = "0.66.0"
+ghq = "1.11.2"
+"github:d-kuro/gwq" = "0.1.2"
+jq = "1.8.2"
+glow = "3.0.0"
+"npm:hunk" = "1.0.6"
+yazi = "26.9.1"

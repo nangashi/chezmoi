@@ -1,0 +1,98 @@
+# chezmoi適用後の状態を検証する（パスは {{.Env.HOME}} 基準）
+# 対話シェルの環境で確認するため、コマンドは `zsh -lic` 経由で実行する
+
+file:
+  # chezmoiで配置されるファイル
+  {{.Env.HOME}}/.zshenv:
+    exists: true
+    contains: ['ZDOTDIR="$HOME/.config/zsh"']
+  {{.Env.HOME}}/.config/zsh/.zshrc:
+    exists: true
+  {{.Env.HOME}}/.config/zsh/.zprofile:
+    exists: true
+    contains: ["/mnt/c/Users/tester/"]
+  {{.Env.HOME}}/.config/zsh/.p10k.zsh:
+    exists: true
+  {{.Env.HOME}}/.gitconfig:
+    exists: true
+    contains: ["test@example.com"]
+  {{.Env.HOME}}/.tmux.conf:
+    exists: true
+  {{.Env.HOME}}/.config/mise/config.toml:
+    exists: true
+  {{.Env.HOME}}/.config/sheldon/plugins.toml:
+    exists: true
+  {{.Env.HOME}}/.local/bin/tm:
+    exists: true
+    mode: "0755"
+  {{.Env.HOME}}/.claude/settings.json:
+    exists: true
+  # .chezmoiexternal.toml
+  {{.Env.HOME}}/.tmux/plugins/tpm/tpm:
+    exists: true
+  # run_once_setup-lazyvim.sh
+  {{.Env.HOME}}/.config/nvim/init.lua:
+    exists: true
+  # .chezmoiignore で除外されているもの
+  {{.Env.HOME}}/README.md:
+    exists: false
+  {{.Env.HOME}}/CLAUDE.md:
+    exists: false
+  {{.Env.HOME}}/tests:
+    exists: false
+
+command:
+  chezmoi verify:
+    exit-status: 0
+    timeout: 60000
+
+  # 固定したバージョンが全てインストール済み（未インストールがあれば一覧が出る）
+  mise ls --missing:
+    exec: mise ls --missing
+    exit-status: 0
+    stdout: ""
+    timeout: 60000
+
+  # ログインシェルが警告・エラーなく起動する（sheldonのプラグイン取得も含む）
+  zsh startup:
+    exec: zsh -lic exit
+    exit-status: 0
+    stderr: ""
+    timeout: 300000
+
+  # mise管理のツールが対話シェルから使える
+  tools on PATH:
+    exec: >-
+      zsh -lic 'for c in eza fzf gh rg bat fd delta zoxide dust sd jj sheldon
+      node nvim lazygit ghq gwq jq glow hunk yazi; do
+      command -v $c >/dev/null || echo "missing: $c"; done'
+    exit-status: 0
+    stdout: ""
+    timeout: 120000
+
+  shell aliases:
+    exec: zsh -lic 'alias ls'
+    exit-status: 0
+    stdout:
+      contain-substring: eza
+    timeout: 60000
+
+  git identity:
+    exec: git config --global user.email
+    exit-status: 0
+    stdout: "test@example.com\n"
+
+  tmux config loads:
+    exec: tmux -L goss -f ~/.tmux.conf new-session -d && tmux -L goss show -g prefix && tmux -L goss kill-server
+    exit-status: 0
+    stdout: "prefix C-t\n"
+    stderr: ""
+    timeout: 30000
+
+  # LazyVimが読み込まれ、プラグイン同期が通る（lazy.nvim未ロードなら終了コード1）
+  nvim lazy sync:
+    exec: >-
+      zsh -lic 'nvim --headless "+Lazy! sync"
+      "+lua if not package.loaded.lazy then vim.cmd.cquit() end" +qa'
+    exit-status: 0
+    timeout: 600000
