@@ -22,3 +22,7 @@ jq = "1.8.2"
 glow = "3.0.0"
 "npm:hunkdiff" = "0.23.0"  # ターミナル差分ビューア（hunkコマンド）
 yazi = "26.9.1"
+just = "1.58.0"         # タスクランナー
+pinact = "5.0.0"        # GitHub Actionsのバージョン固定
+awscli = "2.37.12"      # AWS CLI
+"github:k1LoW/mo" = "1.6.9"  # Markdownビューア

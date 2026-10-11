@@ -64,7 +64,7 @@ command:
   tools on PATH:
     exec: >-
       zsh -lic 'for c in eza fzf gh rg bat fd delta zoxide dust sd jj sheldon
-      node nvim lazygit ghq gwq jq glow hunk yazi; do
+      node nvim lazygit ghq gwq jq glow hunk yazi just pinact aws mo; do
       command -v $c >/dev/null || echo "missing: $c"; done'
     exit-status: 0
     stdout: ""
