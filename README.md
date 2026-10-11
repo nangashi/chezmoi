@@ -15,11 +15,13 @@ chezmoi diff
 chezmoi apply
 ```
 
-## brew install
+## install
+
+chezmoi と mise は公式インストーラで `~/.local/bin` に入れる。
 
 ```sh
-brew install chezmoi
-brew install mise
+sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
+curl https://mise.run | sh
 ```
 
 sheldon などのツールは `dot_config/mise/config.toml` でバージョン固定し、`mise install` で入れる。

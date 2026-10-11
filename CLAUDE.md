@@ -47,7 +47,7 @@ Defined in `.chezmoi.toml.tmpl`, prompted on first init:
 - **chezmoi**: Dotfiles management
 - **mise**: Development tool version manager (`mise.toml`)
 - **sheldon**: Zsh plugin manager (`dot_config/sheldon/plugins.toml`)
-- **brew**: Package manager (Linuxbrew)
+- **chezmoi / mise のインストール**: 公式インストーラ（`~/.local/bin`）
 
 ### Managed Tools (via mise)
 - `eza`: Modern ls replacement (latest)

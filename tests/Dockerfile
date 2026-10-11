@@ -24,11 +24,7 @@ RUN useradd -m -s /usr/bin/zsh tester \
 USER tester
 WORKDIR /home/tester
 
-# 本番ではbrewで入れているブートストラップ用ツール（バージョン固定）
-RUN mkdir -p ~/.local/bin \
- && curl -fsSL "https://github.com/twpayne/chezmoi/releases/download/v${CHEZMOI_VERSION}/chezmoi_${CHEZMOI_VERSION}_linux_amd64.tar.gz" \
-      | tar -xz -C ~/.local/bin chezmoi \
- && curl -fsSL -o ~/.local/bin/mise \
-      "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-x64" \
- && chmod +x ~/.local/bin/mise
+# READMEと同じ公式インストーラで入れる（バージョン固定）
+RUN sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" -t "v${CHEZMOI_VERSION}" \
+ && curl -fsSL https://mise.run | MISE_VERSION="v${MISE_VERSION}" sh
 ENV PATH=/home/tester/.local/bin:$PATH
