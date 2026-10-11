@@ -20,5 +20,5 @@ ghq = "1.11.2"
 "github:d-kuro/gwq" = "0.1.2"
 jq = "1.8.2"
 glow = "3.0.0"
-"npm:hunk" = "1.0.6"
+"npm:hunkdiff" = "0.23.0"  # ターミナル差分ビューア（hunkコマンド）
 yazi = "26.9.1"
